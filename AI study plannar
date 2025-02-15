@@ -1,0 +1,91 @@
+import streamlit as st
+import pandas as pd
+from datetime import datetime, timedelta
+import json
+
+# Load user data (Simulating a database)
+def load_user_data():
+    try:
+        with open("user_data.json", "r") as file:
+            return json.load(file)
+    except FileNotFoundError:
+        return {}
+
+# Save user data
+def save_user_data(data):
+    with open("user_data.json", "w") as file:
+        json.dump(data, file, indent=4)
+
+# User login/authentication
+def authenticate(username, password, users):
+    return users.get(username) == password
+
+# Load user preferences
+def get_user_preferences(username, users):
+    return users.get(username, {}).get("preferences", {})
+
+# Main App
+def main():
+    st.title("AI Study Planner")
+    users = load_user_data()
+
+    menu = ["Login", "Register"]
+    choice = st.sidebar.selectbox("Menu", menu)
+
+    if choice == "Register":
+        st.subheader("User Registration")
+        new_user = st.text_input("Username")
+        new_pass = st.text_input("Password", type="password")
+        if st.button("Register"):
+            if new_user in users:
+                st.warning("Username already exists!")
+            else:
+                users[new_user] = {"password": new_pass, "preferences": {}, "study_plan": []}
+                save_user_data(users)
+                st.success("Registration successful! Please log in.")
+    
+    elif choice == "Login":
+        st.subheader("User Login")
+        username = st.text_input("Username")
+        password = st.text_input("Password", type="password")
+        
+        if st.button("Login"):
+            if authenticate(username, password, users):
+                st.session_state["username"] = username
+                st.success(f"Welcome, {username}!")
+                study_planner(username, users)
+            else:
+                st.warning("Incorrect Username or Password")
+
+# Study Planner Page
+def study_planner(username, users):
+    st.subheader("Create Your Study Plan")
+    subjects = st.text_area("Enter subjects (comma-separated)").split(",")
+    
+    books = st.text_area("Enter books/resources (comma-separated)").split(",")
+    
+    start_time = st.time_input("Start Time")
+    end_time = st.time_input("End Time")
+    deadline = st.date_input("Set Your Deadline")
+    learning_preference = st.selectbox("Learning Preference", ["Visual", "Text-based", "Hands-on", "Lecture"])
+    
+    if st.button("Save Plan"):
+        study_plan = {
+            "subjects": subjects,
+            "books": books,
+            "start_time": str(start_time),
+            "end_time": str(end_time),
+            "deadline": str(deadline),
+            "learning_preference": learning_preference
+        }
+        users[username]["study_plan"].append(study_plan)
+        save_user_data(users)
+        st.success("Study Plan Saved Successfully!")
+
+    if users[username]["study_plan"]:
+        st.subheader("Your Study Plans")
+        for plan in users[username]["study_plan"]:
+            st.write(plan)
+
+if _name_ == "_main_":
+    main()
