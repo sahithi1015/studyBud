@@ -1,91 +1,100 @@
 import streamlit as st
-import pandas as pd
-from datetime import datetime, timedelta
-import json
 
-# Load user data (Simulating a database)
-def load_user_data():
-    try:
-        with open("user_data.json", "r") as file:
-            return json.load(file)
-    except FileNotFoundError:
-        return {}
+st.set_page_config(page_title="Study Bud", layout="wide")
 
-# Save user data
-def save_user_data(data):
-    with open("user_data.json", "w") as file:
-        json.dump(data, file, indent=4)
+# User login
+if 'user' not in st.session_state:
+    st.session_state['user'] = None
+if 'page' not in st.session_state:
+    st.session_state['page'] = 'Dashboard'
 
-# User login/authentication
-def authenticate(username, password, users):
-    return users.get(username) == password
+st.title("Study Bud")
 
-# Load user preferences
-def get_user_preferences(username, users):
-    return users.get(username, {}).get("preferences", {})
+if st.session_state['user'] is None or st.session_state['user'] == "":
+    username = st.text_input("Username")
+    password = st.text_input("Password", type='password')
+    if st.button("Login"):
+        if username and password:  # Simple check for non-empty credentials
+            st.session_state['user'] = username
+            st.success(f"Welcome, {username}!")
+            st.experimental_rerun()
+        else:
+            st.error("Please enter both username and password")
+else:
+    st.sidebar.title("Navigation")
+    st.session_state['page'] = st.sidebar.radio("Go to", ["Dashboard", "Subjects", "Timetable", "Tasks", "Progress", "Notes", "Premium", "Recommendations", "Gamification", "Chatbot"])
 
-# Main App
-def main():
-    st.title("AI Study Planner")
-    users = load_user_data()
+    if st.session_state['page'] == "Dashboard":
+        st.header("Dashboard")
+        st.write(f"Welcome to the STUDY BUD, {st.session_state['user']}!")
 
-    menu = ["Login", "Register"]
-    choice = st.sidebar.selectbox("Menu", menu)
+    elif st.session_state['page'] == "Subjects":
+        st.header("Subjects")
+        num_subjects = st.number_input("Enter the number of subjects:", min_value=1, step=1)
+        time_limit = st.number_input("Enter the total time available (in hours):", min_value=1, step=1)
 
-    if choice == "Register":
-        st.subheader("User Registration")
-        new_user = st.text_input("Username")
-        new_pass = st.text_input("Password", type="password")
-        if st.button("Register"):
-            if new_user in users:
-                st.warning("Username already exists!")
+        if st.button("Provide Schedule"):
+            if num_subjects > 0 and time_limit > 0:
+                time_per_subject = time_limit / num_subjects
+                st.session_state['schedule'] = [(f"Subject {i+1}", round(time_per_subject, 2)) for i in range(num_subjects)]
+                st.session_state['page'] = 'Timetable'
+                st.experimental_rerun()
+
+    elif st.session_state['page'] == "Timetable":
+        st.header("Timetable")
+        if 'schedule' in st.session_state:
+            st.write("Here is your study schedule:")
+            for subject, time in st.session_state['schedule']:
+                st.write(f"{subject}: {time} hours")
+        else:
+            st.write("No schedule available. Please generate one from the Subjects page.")
+
+    elif st.session_state['page'] == "Tasks":
+        st.header("Tasks")
+        task = st.text_input("Add a new task:")
+        if st.button("Add Task"):
+            st.write(f"Task added: {task}")
+
+    elif st.session_state['page'] == "Progress":
+        st.header("Progress Tracking")
+        progress = st.slider("Track your practice progress:", 0, 100, 0)
+        st.write(f"Your current progress: {progress}%")
+
+    elif st.session_state['page'] == "Notes":
+        st.header("Notes")
+        uploaded_file = st.file_uploader("Upload your notes:")
+        if uploaded_file is not None:
+            st.write(f"File uploaded: {uploaded_file.name}")
+
+    elif st.session_state['page'] == "Premium":
+        st.header("Premium Model")
+        st.write("Upgrade to premium for personalized mentor assistance!")
+        st.write("Cost: $9.99/month")
+
+    elif st.session_state['page'] == "Recommendations":
+        st.header("Recommendations")
+        st.write("Recommended Books and Resources:")
+        st.write("- 'Atomic Habits' by James Clear")
+        st.write("- 'Deep Work' by Cal Newport")
+        st.write("- Coursera: Learning How to Learn")
+
+    elif st.session_state['page'] == "Gamification":
+        st.header("Gamification")
+        st.write("Take a quick quiz and earn badges!")
+        question = st.radio("What is the capital of France?", ["Berlin", "Madrid", "Paris", "Rome"])
+        if st.button("Submit Answer"):
+            if question == "Paris":
+                st.write("Correct! You've earned a badge!")
             else:
-                users[new_user] = {"password": new_pass, "preferences": {}, "study_plan": []}
-                save_user_data(users)
-                st.success("Registration successful! Please log in.")
-    
-    elif choice == "Login":
-        st.subheader("User Login")
-        username = st.text_input("Username")
-        password = st.text_input("Password", type="password")
-        
-        if st.button("Login"):
-            if authenticate(username, password, users):
-                st.session_state["username"] = username
-                st.success(f"Welcome, {username}!")
-                study_planner(username, users)
-            else:
-                st.warning("Incorrect Username or Password")
+                st.write("Try again!")
 
-# Study Planner Page
-def study_planner(username, users):
-    st.subheader("Create Your Study Plan")
-    subjects = st.text_area("Enter subjects (comma-separated)").split(",")
-    
-    books = st.text_area("Enter books/resources (comma-separated)").split(",")
-    
-    start_time = st.time_input("Start Time")
-    end_time = st.time_input("End Time")
-    deadline = st.date_input("Set Your Deadline")
-    learning_preference = st.selectbox("Learning Preference", ["Visual", "Text-based", "Hands-on", "Lecture"])
-    
-    if st.button("Save Plan"):
-        study_plan = {
-            "subjects": subjects,
-            "books": books,
-            "start_time": str(start_time),
-            "end_time": str(end_time),
-            "deadline": str(deadline),
-            "learning_preference": learning_preference
-        }
-        users[username]["study_plan"].append(study_plan)
-        save_user_data(users)
-        st.success("Study Plan Saved Successfully!")
+    elif st.session_state['page'] == "Chatbot":
+        st.header("Study Bud AI Chatbot")
+        user_input = st.text_input("Chat with our AI mentor:")
+        if user_input:
+            st.write(f"AI Response: (Pretend AI response for now) {user_input}")
 
-    if users[username]["study_plan"]:
-        st.subheader("Your Study Plans")
-        for plan in users[username]["study_plan"]:
-            st.write(plan)
-
-if _name_ == "_main_":
-    main()
+    if st.sidebar.button("Logout"):
+        st.session_state['user'] = None
+        st.session_state['page'] = 'Dashboard'
+        st.experimental_rerun()
